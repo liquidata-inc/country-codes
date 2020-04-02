@@ -1,14 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import json
-import codecs
 import collections
-import urllib
+import urllib.request
 
 from lxml import html
-
-country_info = json.loads(open("data/iso4217.json").read())
-
 
 def capitalize_country_name(name):
     # replace all-caps name with capitalized country name
@@ -137,7 +132,7 @@ def process_statoids_row(tr):
 
 statoids_url = "http://www.statoids.com/wab.html"
 print('Fetching other country codes...')
-content = urllib.urlopen(statoids_url).read()
+content = urllib.request.urlopen(statoids_url).read()
 doc = html.fromstring(content)
 
 # i dislike some of statoid's column names, so here i have renamed
@@ -169,7 +164,19 @@ for tr in doc.find_class('e'):
     row_dict = collections.OrderedDict(zip(column_names, row))
     # statoids-assigned 'Entity' name is not really a standard
     row_dict.pop('Entity')
+    row_dict.pop('ITU', None)
+    row_dict.pop('FIPS', None)
+    row_dict.pop('IOC', None)
+    row_dict.pop('FIFA', None)
+    row_dict.pop('DS', None)
+    row_dict.pop('WMO', None)
+    row_dict.pop('GAUL', None)
+    row_dict.pop('MARC', None)
+    row_dict.pop('Dial', None)
+    row_dict.pop('is_independent', None)
     table_rows.update({row_dict[alpha2_key]: row_dict})
+#    print(table_rows)
+
 
 # and again for the other half
 for tr in doc.find_class('o'):
@@ -177,30 +184,35 @@ for tr in doc.find_class('o'):
     row_dict = collections.OrderedDict(zip(column_names, row))
     # statoids-assigned 'Entity' name is not really a standard
     row_dict.pop('Entity')
+    row_dict.pop('ITU', None)
+    row_dict.pop('FIPS', None)
+    row_dict.pop('IOC', None)
+    row_dict.pop('FIFA', None)
+    row_dict.pop('DS', None)
+    row_dict.pop('WMO', None)
+    row_dict.pop('GAUL', None)
+    row_dict.pop('MARC', None)
+    row_dict.pop('Dial', None)
+    row_dict.pop('is_independent', None)
     table_rows.update({row_dict[alpha2_key]: row_dict})
 
-keyed_by = "ISO3166-1-Alpha-3"
+output_filename = "data/statoids/iso_3166_1.csv"
+f = open(output_filename, 'w')
+# Write csv headers, should match schema of the iso_3166_1 table:
+# https://www.dolthub.com/repositories/Liquidata/country-codes/data/master/iso_3166_1
+f.write("alpha_2,alpha_3,numeric\n")
 
 # iterate through all the table_rows
 # TODO this assumes that statoids will have all of
 # the items that are pulled from iso.org
-for alpha2, info in table_rows.iteritems():
+for alpha2, info in table_rows.items():
     # ignore this crap that was parsed from other tables on the page
     if alpha2 in ['', 'Codes', 'Codes Codes', 'Codes Codes Codes']:
         continue
-    cinfo = info
+    row = []
+    for key, val in info.items():
+        row.append(val)
 
-    # add combined dict to global (pun intented) data structure
-    ckey = cinfo[keyed_by]
-    country = country_info.get(ckey)
-    if country:
-        country.update(cinfo)
-        country_info.update({ckey: country})
-    else:
-        print('NOT FOUND', cinfo)
-        country_info.update({ckey: cinfo})
+    row = ','.join(row)
+    f.write(row[0:] + "\n")
 
-output_filename = "data/statoids.json"
-f = open(output_filename, mode='w')
-stream = codecs.getwriter('utf8')(f)
-json.dump(country_info, stream, ensure_ascii=False, indent=2, encoding='utf-8')
