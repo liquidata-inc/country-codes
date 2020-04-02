@@ -129,72 +129,54 @@ def process_statoids_row(tr):
         row.append(td.text_content())
     return row
 
+def remove_non_iso_fields(row_dict):
+    row_dict.pop('249 countries')
+    row_dict.pop('ITU', None)
+    row_dict.pop('GEC', None)
+    row_dict.pop('IOC', None)
+    row_dict.pop('FIFA', None)
+    row_dict.pop('DS', None)
+    row_dict.pop('WMO', None)
+    row_dict.pop('GAUL', None)
+    row_dict.pop('MARC', None)
+    row_dict.pop('Dial', None)
+    row_dict.pop('Independent', None)
+    return row_dict
+
+def get_dict_with_iso_fields(doc):
+    # dict to hold dicts of all table rows
+    table_rows = {}
+    # the country code info is in a table where the trs have
+    # alternating classes of `e` and `o`
+    # so fetch half of the rows and zip each row together
+    # with the corresponding column name
+    for tr in doc.find_class('e'):
+        row = process_statoids_row(tr)
+        row_dict = collections.OrderedDict(zip(column_names, row))
+        row_dict = remove_non_iso_fields(row_dict)
+        table_rows.update({row_dict[alpha2_key]: row_dict})
+    # and again for the other half
+    for tr in doc.find_class('o'):
+        row = process_statoids_row(tr)
+        row_dict = collections.OrderedDict(zip(column_names, row))
+        row_dict = remove_non_iso_fields(row_dict)
+        table_rows.update({row_dict[alpha2_key]: row_dict})
+    return table_rows
+
+
 
 statoids_url = "http://www.statoids.com/wab.html"
 print('Fetching other country codes...')
 content = urllib.request.urlopen(statoids_url).read()
 doc = html.fromstring(content)
 
-# i dislike some of statoid's column names, so here i have renamed
-# a few to be more descriptive
-column_names = ["Entity", "ISO3166-1-Alpha-2", "ISO3166-1-Alpha-3",
-                "ISO3166-1-numeric", "ITU", "FIPS", "IOC", "FIFA", "DS",
-                "WMO", "GAUL", "MARC", "Dial", "is_independent"]
-alpha2_key = "ISO3166-1-Alpha-2"
-
-# comment out the preceding two lines and
-# uncomment these lines to use statoids.com column names
-"""
 column_names = []
 alpha2_key = 'A-2'
 for tr in doc.find_class('hd'):
     for th in tr.iterchildren():
         column_names.append(th.text_content())
-"""
 
-# dict to hold dicts of all table rows
-table_rows = {}
-
-# the country code info is in a table where the trs have
-# alternating classes of `e` and `o`
-# so fetch half of the rows and zip each row together
-# with the corresponding column name
-for tr in doc.find_class('e'):
-    row = process_statoids_row(tr)
-    row_dict = collections.OrderedDict(zip(column_names, row))
-    # statoids-assigned 'Entity' name is not really a standard
-    row_dict.pop('Entity')
-    row_dict.pop('ITU', None)
-    row_dict.pop('FIPS', None)
-    row_dict.pop('IOC', None)
-    row_dict.pop('FIFA', None)
-    row_dict.pop('DS', None)
-    row_dict.pop('WMO', None)
-    row_dict.pop('GAUL', None)
-    row_dict.pop('MARC', None)
-    row_dict.pop('Dial', None)
-    row_dict.pop('is_independent', None)
-    table_rows.update({row_dict[alpha2_key]: row_dict})
-#    print(table_rows)
-
-
-# and again for the other half
-for tr in doc.find_class('o'):
-    row = process_statoids_row(tr)
-    row_dict = collections.OrderedDict(zip(column_names, row))
-    # statoids-assigned 'Entity' name is not really a standard
-    row_dict.pop('Entity')
-    row_dict.pop('ITU', None)
-    row_dict.pop('FIPS', None)
-    row_dict.pop('IOC', None)
-    row_dict.pop('FIFA', None)
-    row_dict.pop('DS', None)
-    row_dict.pop('WMO', None)
-    row_dict.pop('GAUL', None)
-    row_dict.pop('MARC', None)
-    row_dict.pop('Dial', None)
-    row_dict.pop('is_independent', None)
-    table_rows.update({row_dict[alpha2_key]: row_dict})
+table_rows = get_dict_with_iso_fields(doc)
 
 output_filename = "data/statoids/iso_3166_1.csv"
 f = open(output_filename, 'w')
